@@ -142,8 +142,15 @@ git merge feature/crm
 
 ## Sharing it with someone (going live)
 
-`https://crm.yourdomain.com`, logged in by email, for you and 1-2 people you trust — without opening
+`https://cars.fitra.us`, logged in by email, for you and 1-2 people you trust — without opening
 a port and **without moving the scraper off your home connection**.
+
+Everyone who logs in sees the **same** board. There are no per-user views and no private cars; the
+`owner` column exists in the schema but nothing reads it.
+
+> One prerequisite: `fitra.us` is on GoDaddy today and has **live Zoho email** on it. Cloudflare
+> Tunnel needs the domain on Cloudflare DNS, and moving nameservers moves the MX records too — get
+> those right or mail stops arriving silently. `docs/DEPLOY.md` step 0 walks through it.
 
 The scraper stays here on purpose. Facebook is much harsher on datacenter IPs than residential ones,
 and a login from a rented server is the likeliest way to get the account checkpointed. So only the
