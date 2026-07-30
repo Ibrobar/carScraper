@@ -16,6 +16,9 @@
     "reprocess": "node --disable-warning=ExperimentalWarning tools/reprocess.js",
     "reprocess:dry": "node --disable-warning=ExperimentalWarning tools/reprocess.js --dry",
     "requeue": "node --disable-warning=ExperimentalWarning tools/requeue_details.js",
+    "replies": "node --disable-warning=ExperimentalWarning tools/check_replies.js",
+    "replies:dry": "node --disable-warning=ExperimentalWarning tools/check_replies.js --dry",
+    "replies:debug": "node --disable-warning=ExperimentalWarning tools/check_replies.js --dry --debug",
     "dashboard": "node --disable-warning=ExperimentalWarning dashboard/server.js",
     "test": "node --disable-warning=ExperimentalWarning --test"
   },

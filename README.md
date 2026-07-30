@@ -47,7 +47,8 @@ scrape fails with `login_wall`.
 2. **Review** — `npm run dashboard`, open http://localhost:5174
 3. **Offer** — click **Copy offer** on a car you like, paste it into Messenger yourself
 4. **Clear** — click **Hide** on cars you're done with, **Interested** on ones you're chasing
-   (Interested takes a car off the page and keeps it forever, however old)
+5. **Track** — clicking Interested puts the car on the **Flips** board (`/crm`), where you follow it
+   through to sold and see what you actually made
 
 ### 1. Scrape
 ```
@@ -120,25 +121,35 @@ Registers a Windows task that scrapes at 7am and 6pm. Remove it with
 
 ---
 
-## Tracking a flip — on the `feature/crm` branch
+## Tracking a flip
 
-The Flips board (purchase → parts → repair → sold, with profit) is built and tested, but it isn't on
-`main`. `main` is the live product: scrape, filter, review.
+**http://localhost:5174/crm** — the "Flips →" link at the top of the listings page.
 
-```
-git checkout feature/crm     # board at http://localhost:5174/crm
-git checkout main            # back to the live scraper
-```
-
-Both branches read the same `data/carscraper.db`, so nothing is lost switching between them —
-cars you marked Interested on `main` are waiting on the board when you switch.
-
-To make the CRM part of the live product, merge it:
+Clicking **Interested** on a car puts it on the board **and takes it off the listings page** — one
+car, one place. From there you move it along:
 
 ```
-git checkout main
-git merge feature/crm
+Interested -> Offer sent -> They replied -> Bought -> Repairing -> Ready to sell -> Sold
 ```
+
+Order isn't enforced — jump straight to Bought if you bought it on the spot, or mark anything Dead
+if it falls through.
+
+- **Bought** asks what you paid. **Sold** asks what it went for. Neither will save without the
+  number, because a profit figure built on a missing price is worse than no figure.
+- **Parts** get their own list per car. Add what it needs with an estimate, then mark each one
+  bought with what you actually paid. Only bought parts count against profit — a shopping list
+  shouldn't make a car look like it's losing money.
+- **Ready to sell** gets its own column — those are the ones needing action today.
+- `npm run replies` checks your Marketplace inbox and moves cars to **They replied** when a seller
+  writes back. It only reads, never sends, and never touches your personal inbox. See
+  `docs/REPLIES.md` — this one isn't proven against real conversations yet.
+- **Remove** deletes a car from the board and puts it back on your listings page. Use it for a
+  misclick; for a deal that died, set the status to **Dead** instead so you keep the history.
+- Top of the page: total invested, **how much is tied up in unsold cars** (the number that decides
+  whether you can afford the next one), sales, and realized profit.
+
+Nothing on this page messages or posts anything to Facebook — it just links out.
 
 ## After you change a filter
 
@@ -184,8 +195,11 @@ after the fact.
 | See older cars again              | Day-range dropdown, or `?days=30` / `?days=0`  |
 | Find the freshest listings        | Default sort — **Most recent** (posted date)   |
 | Keep a car around indefinitely    | Click **Interested** — it never ages off       |
-| Work the flip pipeline            | `git checkout feature/crm` — see above         |
 | Speed up detail fetching          | `DETAIL_CONCURRENCY` in `.env` (default 5)     |
+| Track a car I'm buying            | Click **Interested**, then work it on `/crm`   |
+| Check if sellers replied          | `npm run replies` (preview: `npm run replies:dry`) |
+| See what I actually made          | `/crm` — realized profit, top right            |
+| See how much cash is tied up      | `/crm` — "tied up in N unsold"                 |
 | Run the tests                     | `npm test`                                     |
 
 Port: dashboard **5174**.

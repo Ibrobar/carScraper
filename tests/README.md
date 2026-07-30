@@ -18,7 +18,10 @@ Node 22's builtin test runner. No jest, no vitest, no config file.
 | `parsing.test.js` | `scrapers/base.js` helpers, search URL, failure classification | Pure, so testable without Playwright |
 | `db.test.js` | Upsert semantics, sticky statuses, zero-listing rule | Two invariants the project's usefulness rests on |
 | `render.test.js` | Dashboard HTML, escaping, grouping, paging | Listing titles are hostile text from strangers |
+| `flips.test.js` | CRM pipeline rules and money math | A wrong profit number is worse than no number |
+| `crm-db.test.js` | Flip/parts storage, idempotent `openFlip` | Clicking Interested twice must not open two files on one car |
 | `lang.test.js` | Spanish/English detection | ~31% of listings are Spanish |
+| `matching.test.js` | Thread-to-car matching and its refusals | A wrong match moves the wrong car and fakes a reply |
 
 Nothing here touches the network or launches a browser. `db.test.js` uses a throwaway SQLite file in
 the OS temp dir. The whole suite runs in about a second, which is what makes the
