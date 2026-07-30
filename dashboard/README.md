@@ -11,7 +11,6 @@ Behavior, endpoints, and the card layout: **`docs/DASHBOARD.md`**.
 | File | Does |
 |---|---|
 | `render.js` | Pure HTML rendering for the listings page. No I/O, no DB — a function of rows, so it's unit-testable without a browser. |
-| `crm.js` | Same, for the Flips board (`/crm`). See `docs/CRM.md`. |
 | `server.js` | `node:http` server. Queries SQLite, calls the renderers, handles the POST routes. |
 
 Same split as the resume-tailoring dashboard: shared pure render logic, thin server on top. No React,
@@ -25,11 +24,6 @@ works with the network off (thumbnails hotlink Facebook's CDN and will break; th
 | GET | `/` | Listings. Query params: `sort`, `days`, `metro`, `origin`, `min`, `max`, `q`, `rejected`, `page` |
 | POST | `/api/status` | `{ fbId, status }` -> `interested` \| `hidden` \| `passed`. `interested` also opens a flip. |
 | GET | `/api/health` | Run status per metro as JSON |
-| GET | `/crm` | The Flips board |
-| POST | `/crm/:id/status` | Advance a flip. 400 if the stage needs a price and none was given. |
-| POST | `/crm/:id/part` | Add a part |
-| POST | `/crm/part/:id/bought` | Mark a part bought at a price |
-| POST | `/crm/part/:id/delete` | Remove a part |
 
 CRM routes are plain form posts that redirect back with 303, so refreshing never re-submits.
 

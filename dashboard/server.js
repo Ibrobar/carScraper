@@ -5,8 +5,8 @@
 // There is deliberately NO route that talks to Facebook. See Core rule 1 in
 // CLAUDE.md and docs/DASHBOARD.md.
 //
-// The CRM is a mounted module (dashboard/crm/). Everything it owns is reached
-// through the three marked lines below.
+// The flip CRM is a mounted module and lives on the `feature/crm` branch. The
+// mount points it uses are marked below so re-adding it is mechanical.
 
 import { createServer } from 'node:http';
 import {
@@ -15,10 +15,6 @@ import {
 } from '../lib/db.js';
 import { config } from '../lib/config.js';
 import { renderPage } from './render.js';
-// --- CRM module ------------------------------------------------------------
-import { handleCrmRequest, onListingMarkedInterested, NAV_LINK } from './crm/routes.js';
-const CRM = { handleCrmRequest, onListingMarkedInterested, NAV_LINK };
-// ---------------------------------------------------------------------------
 
 const VALID_STATUSES = new Set(['interested', 'hidden', 'passed']);
 
@@ -86,7 +82,8 @@ const server = createServer(async (req, res) => {
         pageSize,
         total,
         groupField: SORT_GROUP_FIELD[filters.sort] ?? 'posted_at',
-        navLinks: CRM ? [CRM.NAV_LINK] : [],
+        // Mount point: modules contribute header links here.
+        navLinks: [],
       });
       res.writeHead(200, { 'content-type': 'text/html; charset=utf-8' });
       res.end(html);
@@ -108,19 +105,16 @@ const server = createServer(async (req, res) => {
       }
       setListingStatus(db, fbId, status);
 
-      // Interested is the moment a car enters the pipeline. Without the CRM
-      // mounted the status alone still takes it off this page, which is the
-      // behaviour that matters here.
-      const flipId = status === 'interested' && CRM
-        ? CRM.onListingMarkedInterested(db, fbId)
-        : null;
+      // Mount point: the CRM opens a flip here when a car is marked Interested.
+      // Without it the sticky status alone still takes the car off this page,
+      // which is the behaviour that matters on this branch.
 
       res.writeHead(200, { 'content-type': 'application/json' });
-      res.end(JSON.stringify({ ok: true, flipId }));
+      res.end(JSON.stringify({ ok: true }));
       return;
     }
 
-    if (CRM && await CRM.handleCrmRequest(req, res, { db, url })) return;
+    // Mount point: module routes are offered the request here, before the 404.
 
     res.writeHead(404, { 'content-type': 'text/plain' });
     res.end('Not found');

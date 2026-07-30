@@ -10,8 +10,9 @@ dashboard. The only real dependency is Playwright.
 Houston is implemented and defined in `lib/config.js` but **off by default** — `METROS=dfw,houston`
 in `.env` re-enables it. Don't turn it on unprompted.
 
-Phase 1 (built) = scrape + filter + dashboard. Phase 2 = offer-review queue. Phase 3 = flip CRM.
-See "Roadmap" at the bottom before adding anything.
+**This is the `main` branch — the live product: scrape + filter + dashboard.** The flip CRM is
+built and tested but lives on `feature/crm`; it is a removable module, and nothing here imports it.
+Don't rebuild it here. See "Branches" and "Roadmap" at the bottom before adding anything.
 
 ## How to talk to me — TERSE
 Few words. Caveman speak. Say the result, not the journey. No preamble, no recap of steps, no
@@ -25,7 +26,7 @@ Houston run failed -- login wall, snapshot in data/debug/." Bad: paragraphs.
    dashboard drafts offer text and copies it to my clipboard; *I* paste and send it. There is no
    code path in this repo that writes to Facebook, and none may be added without me asking for it
    in those words. This is the single most important rule here.
-   *Reading* is allowed and is how reply detection works (`docs/REPLIES.md`) — but only Marketplace
+   *Reading* is allowed and is how reply detection works (on `feature/crm`) — but only Marketplace
    folders. **Never read the personal Messenger inbox**; no seller thread is in it, and scanning
    years of family conversations for car sellers is both useless and invasive.
 2. **Never commit `data/`.** It holds the Facebook session cookies. `.gitignore` covers it — do not
@@ -65,20 +66,14 @@ Houston run failed -- login wall, snapshot in data/debug/." Bad: paragraphs.
                            price/metro rules, and the offer math. The heart of the project.
 - `docs/DATA.md`         — SQLite schema, listing status flow, upsert + price-history semantics.
 - `docs/DASHBOARD.md`    — what the dashboard shows, its endpoints, and the offer-copy button.
-- `docs/CRM.md`          — the flip pipeline: statuses, parts, and the money math. The business half.
-- `docs/REPLIES.md`      — reading the Marketplace inbox and matching a thread back to a car.
-                           READ ONLY, and never touches the personal inbox.
 - `docs/OPERATIONS.md`   — scheduling, troubleshooting a broken run, account-risk practices.
 - `lib/`                 — pure, zero-dep logic. No I/O, no Playwright. This is what the tests cover.
                            config.js, db.js, makes.js, defects.js, filters.js, offers.js, ai.js,
                            lang.js, geo.js
-- `lib/crm/`             — the CRM as a REMOVABLE MODULE: schema.js, db.js, flips.js, matching.js.
-                           Core code never imports from here. Four seams, listed in lib/crm/README.md.
 - `scrapers/`            — anything that touches Facebook. base.js (the provider contract),
                            facebook.js (Playwright), apify.js (paid fallback, stubbed).
 - `tools/`               — the CLI pipeline: login.js, scrape.js, reprocess.js
 - `dashboard/`           — render.js (listings HTML) + server.js (localhost:5174)
-- `dashboard/crm/`       — the CRM's rendering and routes. Mounted by server.js in one line.
 - `tests/`               — node:test specs + `fixtures/` (saved real Marketplace HTML)
 - `data/`                — GITIGNORED. carscraper.db, session/storage_state.json, debug/
 
@@ -91,8 +86,7 @@ Houston run failed -- login wall, snapshot in data/debug/." Bad: paragraphs.
 | Adding a scraped field               | docs/SCRAPER.md, docs/DATA.md               | docs/FILTERS.md               | node      |
 | Schema / migration / query work      | docs/DATA.md, lib/db.js                     | docs/SCRAPER.md, docs/FILTERS.md | node   |
 | Dashboard look or behavior           | docs/DASHBOARD.md, dashboard/render.js      | docs/SCRAPER.md, docs/FILTERS.md | node    |
-| Flip pipeline / parts / profit       | docs/CRM.md, lib/crm/flips.js                   | docs/SCRAPER.md, docs/FILTERS.md | node    |
-| Reply detection / thread matching    | docs/REPLIES.md, lib/crm/matching.js            | docs/FILTERS.md, docs/DATA.md | playwright |
+| Flip CRM / replies / parts / profit  | NOT ON THIS BRANCH — switch to `feature/crm` | everything else            | git       |
 | Offer price or message wording       | docs/FILTERS.md (Offer math), lib/offers.js | docs/SCRAPER.md, docs/DATA.md | node      |
 | Scheduling / a run failed overnight  | docs/OPERATIONS.md                          | docs/FILTERS.md               | schtasks  |
 | Swapping in the paid scraper         | docs/SCRAPER.md (Providers), scrapers/base.js | docs/FILTERS.md             | node      |
@@ -133,12 +127,24 @@ On "scrape"/"go": confirm the session file exists first (`data/session/storage_s
 missing or stale, STOP and tell me to run `npm run login` — do not try to log in programmatically.
 If unsure which row applies, ask — don't read everything.
 
+## Branches
+- **`main`** (here) — the live product: scraper, filters, dashboard. This is what gets deployed.
+- **`feature/crm`** — main plus the flip CRM module (`lib/crm/`, `dashboard/crm/`, reply detection,
+  `docs/CRM.md`, `docs/REPLIES.md`). It carries a revert of main's removal commit, so it sits
+  *ahead* of main rather than behind it.
+
+Working rules:
+- Scraper, filter, dashboard, and deployment work happens on `main`, and `feature/crm` merges main
+  in to stay current. That direction is safe.
+- CRM work happens on `feature/crm`. Never re-add CRM files to `main` by hand — merge the branch.
+- Going live with the CRM = merge `feature/crm` into `main`. The revert commit brings it all back.
+
 ## Roadmap — do not build ahead
-- **Phase 1 (done):** scrape, filter, dashboard, offer text copied to clipboard.
-- **Phase 2 (done):** flip CRM — pipeline, parts, purchase/sale prices, profit. See `docs/CRM.md`.
+- **Phase 1 (done, on `main`):** scrape, filter, dashboard, offer text copied to clipboard.
+- **Phase 2 (done, on `feature/crm`):** flip CRM — pipeline, parts, purchase/sale prices, profit,
+  and reply detection.
 - **Not built, and deliberately:** auto-messaging sellers and auto-posting to Marketplace. Both were
   asked about and dropped. Both are Facebook *write* actions and stay out under Core rule 1.
-- **Next up, when asked:** reply detection (polling Messenger to flip `contacted` -> `replied`),
-  per-user logins for 1-2 trusted people (the `owner` column is already on both CRM tables), and
-  hosting. Nothing needs remote access yet.
+- **Next up, when asked:** hosting/deployment and per-user logins for 1-2 trusted people (the
+  `owner` column already exists on the CRM tables).
 Ask before starting one. Don't add its schema "while you're in there."
