@@ -67,8 +67,9 @@ Houston run failed -- login wall, snapshot in data/debug/." Bad: paragraphs.
 - `docs/DATA.md`         — SQLite schema, listing status flow, upsert + price-history semantics.
 - `docs/DASHBOARD.md`    — what the dashboard shows, its endpoints, and the offer-copy button.
 - `docs/OPERATIONS.md`   — scheduling, troubleshooting a broken run, account-risk practices.
-- `docs/DEPLOY.md`       — going live: Cloudflare Tunnel + Access, who can log in, how to verify
-                           it's actually locked. The scraper stays on the home IP by design.
+- `docs/DEPLOY.md`       — going live on https://fitra.us: Cloudflare Tunnel + Access, who can log
+                           in, how to verify it's actually locked. Written as plain step-by-step,
+                           not reference. The scraper stays on the home IP by design.
 - `lib/`                 — pure, zero-dep logic. No I/O, no Playwright. This is what the tests cover.
                            config.js, db.js, makes.js, defects.js, filters.js, offers.js, ai.js,
                            lang.js, geo.js

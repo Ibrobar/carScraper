@@ -1,291 +1,258 @@
-# Going live — Cloudflare Tunnel
+# Putting the dashboard on fitra.us
 
-Puts the dashboard on a real HTTPS address that you and 1-2 trusted people can log into, **without
-moving the scraper off your home IP and without opening a port on your router.**
+Goal: you and 2 other people can open **https://fitra.us**, log in with your email, and see the car
+dashboard — from anywhere, on a phone.
 
-Read this if you're standing the deployment up, changing who has access, or the tunnel broke.
+The old fitra.us website and its email stop working. That's fine and expected.
+
+> Only thing worth a thought first: if any account anywhere uses an `@fitra.us` address to log in or
+> reset a password, move it to another address before you start. After step 1 those addresses stop
+> receiving mail.
+
+**Time:** about 30 minutes, plus waiting for the domain to switch over.
+**Cost:** nothing.
 
 ---
 
-## Why this shape
+## How it works, in one picture
 
-The scraper is the fragile, valuable half. It logs into Facebook with a real account, and Facebook
-treats a datacenter IP far more harshly than a residential one — a login from a Hetzner or
-DigitalOcean range is the single most likely thing to get the account checkpointed. So the scraper
-stays exactly where it is, on your machine, on your home connection, on the existing scheduled task.
-
-Only the *view* goes public, and it goes public by dialling out rather than opening up:
+Your computer keeps doing everything. It just gets a doorway to the internet.
 
 ```
-Your Windows PC                                    Internet
-┌────────────────────────────────┐
-│ scrape (task, 2x/day) ─────────┼──── home IP ────────────▶ Facebook
-│ data/carscraper.db             │
-│ dashboard  127.0.0.1:5174      │
-│      ▲                         │
-│      │ localhost only          │
-│ cloudflared ───────────────────┼──── outbound ──────────▶ Cloudflare
-└────────────────────────────────┘                              │
-                                                    Cloudflare Access
-                                                    (email login, 3 users)
-                                                                │
-                                                  https://cars.fitra.us
+   Your PC                                   Cloudflare            People
+┌────────────────┐
+│ scraper        │  ← stays here, on your home internet
+│ dashboard      │
+│ cloudflared ───┼──── calls out ────▶  [ login wall ]  ◀──── you + 2 others
+└────────────────┘                                             fitra.us
 ```
 
-Two independent locks, which matters because either one alone has a bad failure mode:
+`cloudflared` is a small program that makes an outgoing connection to Cloudflare. Nothing gets
+opened on your router, and the dashboard is never directly on the internet. Cloudflare puts a login
+page in front and only lets your 3 email addresses through.
 
-1. **Cloudflare Access** turns strangers away at the edge, before traffic reaches your machine.
-2. **The app verifies the token itself** (`lib/auth.js`). Access can be misconfigured — a policy
-   set to "allow everyone", a second tunnel pointed at the same port, another process on your
-   machine hitting `localhost:5174`. Checking the signature means those get a 403 instead of your
-   business.
-
-The dashboard binds `127.0.0.1` and there is no setting to change that. Exposing the port directly
-is the mistake this design exists to prevent.
+**Your PC has to be turned on** for anyone to see the site.
 
 ---
 
-## What you need first
+## Step 1 — Move fitra.us to Cloudflare
 
-- The PC on and awake when someone wants to browse. Sleep settings matter — see Troubleshooting.
-- `fitra.us` moved to Cloudflare DNS — see step 0. This is the only real prerequisite and the only
-  step with any risk to something you already have.
+Cloudflare has to be in charge of the domain for any of this to work.
 
-Cost: $0 on top of the domain you already own. Tunnel and Access are free at this size (Access is free to 50 users).
-
----
-
-## 0. Move fitra.us to Cloudflare — carefully
-
-As of setup, `fitra.us` is on **GoDaddy** nameservers (`ns23`/`ns24.domaincontrol.com`) and two
-things are live on it:
-
-| What | Evidence | If it breaks |
-|---|---|---|
-| A website on the apex | `https://fitra.us` returns 200, GoDaddy-hosted, titled "Fitra" | The site goes down |
-| **Email, via Zoho** | MX → `mx.zoho.com`, `mx2`, `mx3.zoho.com` | **You stop receiving mail** |
-
-Cloudflare Tunnel can only route a hostname whose DNS Cloudflare controls, so the nameservers have
-to move. There is no free way around this — keeping DNS at GoDaddy and pointing a CNAME at
-`<uuid>.cfargotunnel.com` does not work, because that hostname only resolves through Cloudflare's
-proxy. (Cloudflare's "partial/CNAME setup" that would allow it is a Business-plan feature.)
-
-**The email is the thing to be careful about.** Moving nameservers moves *all* DNS, and a zone
-missing its MX records silently stops delivering mail — no bounce you'll notice, just nothing
-arriving.
-
-1. In Cloudflare: **Add a site → `fitra.us` → Free plan.** Cloudflare scans your existing records.
-2. **Before changing anything at GoDaddy**, check the imported records against the live ones. The
-   scan is good but not guaranteed complete. Compare against:
-   ```powershell
-   nslookup -type=MX fitra.us 8.8.8.8      # expect the three Zoho hosts
-   nslookup -type=TXT fitra.us 8.8.8.8     # SPF, and any Zoho verification record
-   nslookup fitra.us 8.8.8.8               # the apex A records
-   nslookup www.fitra.us 8.8.8.8
+1. Make a free account at **cloudflare.com**.
+2. Click **Add a site**, type `fitra.us`, pick the **Free** plan.
+3. It shows your existing records, then gives you **two nameservers** that look like:
    ```
-   Every one of those must exist in the Cloudflare zone before you proceed. Add anything missing by
-   hand. **DKIM/SPF/DMARC TXT records especially** — those are easy to miss and their absence
-   degrades mail delivery quietly rather than obviously.
-3. Set the apex and `www` records to **DNS only** (grey cloud) at first, so the existing GoDaddy site
-   keeps behaving exactly as it does now. You can turn on proxying later once you've confirmed
-   nothing broke.
-4. At GoDaddy: **Domains → fitra.us → Nameservers → Change → Custom**, and enter the two Cloudflare
-   nameservers it gave you.
-5. Wait. Usually minutes, up to 24h. Confirm with:
-   ```powershell
-   nslookup -type=NS fitra.us 8.8.8.8      # should show *.ns.cloudflare.com
+   xxxx.ns.cloudflare.com
+   yyyy.ns.cloudflare.com
    ```
-6. **Then re-check mail actually works** — send yourself a message from an outside address. Do this
-   the same day, while you still remember what changed.
+   Write them down.
+4. Go to **godaddy.com** → **My Products** → `fitra.us` → **DNS** → **Nameservers** → **Change** →
+   **I'll use my own nameservers**.
+5. Delete what's there, put in the two Cloudflare ones, save.
+6. Wait. Usually 10-30 minutes, sometimes a few hours. Cloudflare emails you when it's active.
 
-If you'd rather not touch a domain that has working email on it, that is a completely reasonable
-call. A second cheap domain used only for this costs ~$10/yr and carries none of the above risk.
-
----
-
-## Which hostname
-
-Use **`cars.fitra.us`**, not the apex.
-
-The apex is serving your existing Fitra site. Pointing it at the tunnel would replace that site, and
-there's no reason to — a subdomain costs nothing, keeps the two independent, and means a mistake in
-this setup can't take down anything else you have.
-
-`cars.fitra.us` currently doesn't resolve, so it's free to use.
-
-> Wanting the dashboard on the apex instead is fine, but it means the Fitra site stops being
-> reachable there. Say so and it's a one-line change in the ingress rules below.
+**Then clear out the old website records.** In Cloudflare click **DNS** in the left sidebar. Delete
+any record named `fitra.us` or `www` whose type is **A** or **CNAME**. That's the old GoDaddy site.
+If you leave them, step 3 fails with "record already exists".
 
 ---
 
-## 1. Install cloudflared
+## Step 2 — Install the connector
+
+Open **PowerShell** and run:
 
 ```powershell
 winget install --id Cloudflare.cloudflared
 ```
 
-Close and reopen the terminal so it lands on `PATH`, then:
-
-```powershell
-cloudflared --version
-```
-
-## 2. Log in and create the tunnel
+**Close PowerShell and open it again** so it can find the new program, then:
 
 ```powershell
 cloudflared tunnel login
 ```
 
-Opens a browser; pick your domain. This writes a certificate to `%USERPROFILE%\.cloudflared\`.
+A browser opens. Pick `fitra.us` and authorize.
 
 ```powershell
 cloudflared tunnel create carscraper
 ```
 
-Prints a tunnel UUID and writes `%USERPROFILE%\.cloudflared\<UUID>.json`.
+This prints a long ID like `6ff42ae2-765d-4adf-8112-31c55c1551ef`. **Copy it** — you need it next.
 
-> **That JSON is a credential.** It is outside the repo, which is where it belongs — never move it
-> into the project folder. `data/` is gitignored but `.cloudflared/` is not part of this repo at all,
-> and that separation is deliberate.
+---
 
-## 3. Point a hostname at it
+## Step 3 — Point fitra.us at your computer
 
 ```powershell
-cloudflared tunnel route dns carscraper cars.fitra.us
+cloudflared tunnel route dns carscraper fitra.us
 ```
 
-Then create `%USERPROFILE%\.cloudflared\config.yml`:
+Now the settings file:
+
+```powershell
+notepad $env:USERPROFILE\.cloudflared\config.yml
+```
+
+Say yes to creating it, then paste this in — **swap in your own ID from step 2**:
 
 ```yaml
 tunnel: carscraper
-credentials-file: C:\Users\ibrah\.cloudflared\<UUID>.json
+credentials-file: C:\Users\ibrah\.cloudflared\6ff42ae2-765d-4adf-8112-31c55c1551ef.json
 
 ingress:
-  - hostname: cars.fitra.us
+  - hostname: fitra.us
     service: http://127.0.0.1:5174
-  # Anything not matched above is refused rather than forwarded.
   - service: http_status:404
 ```
 
-Test it in the foreground, with the dashboard already running in another terminal:
+Save and close.
+
+**Test it** with two PowerShell windows:
 
 ```powershell
+# Window 1 — the dashboard
+cd C:\Users\ibrah\Desktop\Coding\carScraper
+npm run dashboard
+```
+
+```powershell
+# Window 2 — the doorway
 cloudflared tunnel run carscraper
 ```
 
-Visit `https://cars.fitra.us`. **It should load with no login at this point** — that's expected
-and is exactly why you do not stop here. Access goes on next.
+Open **https://fitra.us** on your phone. You should see your cars.
 
-## 4. Put Access in front
+⚠️ **Right now anyone on the internet can see it too.** Step 4 fixes that. Don't stop here.
 
-In the Cloudflare dashboard: **Zero Trust → Access → Applications → Add an application →
-Self-hosted**.
+---
 
-- **Application domain:** `cars.fitra.us`
-- **Session duration:** 24 hours is reasonable; you'll re-login daily.
-- **Policy:** name it `owners`, action **Allow**, include **Emails** → your address and the 1-2
-  people you trust. Use *Emails*, not *Everyone*, and not *Email domain* unless you actually mean
-  everyone at that domain.
+## Step 4 — Add the login wall
 
-Save, then open the application and copy its **Application Audience (AUD) Tag** — a long hex string.
+1. In Cloudflare, click **Zero Trust** in the left sidebar. It may ask you to pick a team name —
+   anything is fine, but write down what you chose.
+2. Go to **Access** → **Applications** → **Add an application** → **Self-hosted**.
+3. Fill in:
+   - **Application name:** `carscraper`
+   - **Domain:** `fitra.us`
+   - **Session duration:** 24 hours
+4. Click **Next**. Now the rule for who gets in:
+   - **Policy name:** `us`
+   - **Action:** Allow
+   - **Include:** pick **Emails**, then type your email and the other 2 people's emails
+5. Save.
 
-Your **team domain** is under **Zero Trust → Settings → Custom Pages** (or in the URL when you're in
-Zero Trust): `something.cloudflareaccess.com`.
+Open **https://fitra.us** in a private/incognito window. You should get a Cloudflare login page that
+emails you a code. That's it working.
 
-## 5. Turn on verification in the app
+---
 
-Add to `.env`:
+## Step 5 — Tell the app to check the login too
+
+Cloudflare now guards the door. The app should also check for itself — so that if the rule in step 4
+ever gets edited wrong, the dashboard doesn't end up wide open.
+
+1. In Cloudflare: **Zero Trust** → **Access** → **Applications** → click `carscraper` → copy the
+   **Application Audience (AUD) Tag**. Long string of letters and numbers.
+2. Open `C:\Users\ibrah\Desktop\Coding\carScraper\.env` in Notepad and add these 3 lines. (If there's
+   no `.env` file, make one by copying `.env.example`.)
 
 ```
 REQUIRE_AUTH=1
-ACCESS_AUD=<the AUD tag from step 4>
-ACCESS_TEAM_DOMAIN=<yourteam>.cloudflareaccess.com
+ACCESS_AUD=paste-the-long-string-here
+ACCESS_TEAM_DOMAIN=yourteamname.cloudflareaccess.com
 ```
 
-Restart the dashboard. The banner should now read:
+`yourteamname` is the team name from step 4.
+
+3. Stop the dashboard with Ctrl+C and start it again. It should now say:
 
 ```
-Dashboard: http://localhost:5174
-Auth:      Cloudflare Access (<yourteam>.cloudflareaccess.com)
+Auth:      Cloudflare Access (yourteamname.cloudflareaccess.com)
 ```
 
-If `REQUIRE_AUTH=1` and either value is missing, **the server refuses to start**. That is
-intentional — booting half-configured would serve the dashboard to anyone who found the hostname.
+If it still says `Auth: OFF`, the `.env` file isn't being read — check it's in the project folder and
+named exactly `.env`.
 
-## 6. Verify it is actually locked
+If it refuses to start and complains about `REQUIRE_AUTH`, one of the two values is missing. That's
+on purpose — it won't run half-configured.
 
-Do all three. The first two passing is not enough.
+---
+
+## Step 6 — Check it's actually locked
+
+Do **all three**. The first one passing is not enough.
 
 ```powershell
-# 1. Through the tunnel, logged out (use a private window):
-#    → should redirect to a Cloudflare login page, NOT the dashboard.
-
-# 2. Straight at the local port, no Cloudflare headers:
+# 1. Should print 403 Forbidden
 curl.exe -i http://127.0.0.1:5174/
-#    → HTTP/1.1 403 Forbidden
-#      Forbidden: no token
-
-# 3. A made-up token:
-curl.exe -i -H "Cf-Access-Jwt-Assertion: a.b.c" http://127.0.0.1:5174/
-#    → HTTP/1.1 403 Forbidden
 ```
 
-If #2 returns HTML, `REQUIRE_AUTH` is not on and the dashboard is unprotected the moment the tunnel
-is up.
+2. Open **https://fitra.us** in a private window → should show the Cloudflare login page.
+3. Get someone whose email you did *not* add to try it → they should be refused.
 
-## 7. Run both as services
+If test 1 shows a web page instead of `403 Forbidden`, step 5 didn't take and the dashboard is
+unprotected.
 
-Cloudflared:
+---
+
+## Step 7 — Make it all start by itself
+
+Right now everything stops when you close PowerShell.
+
+**The connector** — PowerShell **as Administrator**:
 
 ```powershell
-# Run as Administrator
 cloudflared service install
 ```
 
-The dashboard needs to come back after a reboot too. Task Scheduler, "At startup", running:
+**The dashboard** — open **Task Scheduler** → **Create Task**:
 
-```
-node --disable-warning=ExperimentalWarning C:\Users\ibrah\Desktop\Coding\carScraper\dashboard\server.js
-```
+- **General:** name it `CarScraper Dashboard`, tick **Run whether user is logged on or not**
+- **Triggers:** New → **At startup**
+- **Actions:** New → Start a program
+  - Program: `node`
+  - Arguments: `--disable-warning=ExperimentalWarning dashboard/server.js`
+  - Start in: `C:\Users\ibrah\Desktop\Coding\carScraper`
+- **Settings:** tick **restart if the task fails**
 
-Set it to **Run whether user is logged on or not** and **Restart on failure**. The existing
-`tools/register_task.ps1` scrape task is untouched by any of this.
+Reboot and check https://fitra.us still loads.
 
----
-
-## Changing who has access
-
-**Zero Trust → Access → Applications → carscraper → Policies.** Add or remove an email; it takes
-effect on their next request. Removing someone here is the whole revocation — there are no app
-accounts, no passwords, nothing stored on your side.
-
-There is deliberately no signup, no password reset, and no user table. For three people, an
-allowlist someone else operates is fewer things to get wrong.
+Your twice-daily scrape task is separate and isn't affected by any of this.
 
 ---
 
-## Troubleshooting
+## Adding or removing a person
 
-| Symptom | Cause | Fix |
+**Cloudflare → Zero Trust → Access → Applications → carscraper → Policies** → edit the email list.
+
+Takes effect immediately. There are no accounts or passwords on your side, so removing someone from
+that list is the whole job.
+
+Everyone who gets in sees the **same** dashboard. There are no private or per-person views.
+
+---
+
+## When something breaks
+
+| What you see | What's wrong | Fix |
 |---|---|---|
-| `403 Forbidden: no token` in a browser | Reaching the app without going through Access | Use the `cars.fitra.us` URL, not the IP or localhost |
-| `403 Forbidden: aud mismatch` | `ACCESS_AUD` is from a different Access application | Recopy the AUD tag from the right app |
-| `403 Forbidden: issuer mismatch` | `ACCESS_TEAM_DOMAIN` is wrong | Check Zero Trust → Settings |
-| `403 Forbidden: unknown signing key` | Cloudflare rotated keys and the fetch failed | Check the PC has internet; the JWKS cache refetches on an unknown key |
-| Site is down, tunnel shows disconnected | PC asleep or offline | Power settings → never sleep; or accept it and browse when the PC is up |
-| Site loads with **no** login prompt | Access application not created, or its domain doesn't match | Redo step 4; the domain must match exactly |
-| Dashboard 502 through the tunnel | Dashboard process not running | Start it; check the Task Scheduler startup entry |
+| `403 Forbidden: no token` | You used `localhost` instead of the real address | Go to https://fitra.us |
+| `403 Forbidden: aud mismatch` | Wrong AUD in `.env` | Recopy it, step 5 |
+| `403 Forbidden: issuer mismatch` | Wrong team name in `.env` | Check `ACCESS_TEAM_DOMAIN` |
+| Site won't load at all | PC asleep or off | Turn off sleep in Windows power settings |
+| `Error 502` | Dashboard isn't running | Start it, or check the Task Scheduler entry |
+| Site loads with no login | Step 4 didn't apply | Check the Access app domain is exactly `fitra.us` |
+| `record already exists` in step 3 | Old GoDaddy records still there | Delete the A/CNAME records for `fitra.us` in Cloudflare DNS |
 
-**A note on what this does and doesn't protect.** Access controls who reaches the dashboard. It does
-nothing about the Facebook account — that risk is unchanged and lives entirely in the scraper, which
-is why the scraper stayed home. If exposure ever needs to drop further, the answer is still
-`PROVIDER=apify` (`docs/SCRAPER.md` → Providers), which scrapes without your login at all.
+**This protects the dashboard, not the Facebook account.** That risk is unchanged, and it lives in
+the scraper — which is exactly why the scraper stays on your home internet instead of moving to a
+rented server. Facebook is far more suspicious of logins from data centres.
 
 ---
 
-## Related
+## For reference
 
-- `docs/OPERATIONS.md` — the scrape schedule and what to do when a run fails
-- `docs/DASHBOARD.md` — what the dashboard shows
-- `lib/auth.js` — the token verification, and why it exists alongside Access
+- `lib/auth.js` — the login check, and why it exists on top of Cloudflare's
 - `tests/auth.test.js` — what must be refused
+- `docs/OPERATIONS.md` — the scrape schedule
