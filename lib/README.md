@@ -19,6 +19,7 @@ the data*, it's in `../scrapers/`.
 | `filters.js` | Combines the rules. `evaluateCard()` (cheap, no description) and `evaluateFull()` (everything). | `docs/FILTERS.md` |
 | `offers.js` | Offer price math + the drafted message text | `docs/FILTERS.md` §Offer math |
 | `db.js` | SQLite: schema, upsert, queries, run bookkeeping | `docs/DATA.md` |
+| `auth.js` | Verifies Cloudflare Access tokens so a tunnel misconfiguration isn't an open door. Off by default; localhost needs no login. | `docs/DEPLOY.md` |
 | `ai.js` | Optional second-pass description review via the Claude API. No-ops without a key. | `docs/FILTERS.md` §Stage 2 |
 
 ## Two entry points, matching the two-phase scrape

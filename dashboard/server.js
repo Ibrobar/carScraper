@@ -1,6 +1,13 @@
-// Local dashboard server. Queries SQLite, hands rows to render.js, serves HTML.
-// Binds 127.0.0.1 only — nothing here is authenticated because nothing here
-// should ever be reachable off this machine. Don't put it behind a tunnel.
+// Dashboard server. Queries SQLite, hands rows to render.js, serves HTML.
+//
+// Binds 127.0.0.1 — always, with no option to change it. Going live does NOT
+// mean opening this port: `cloudflared` runs on this machine, dials out to
+// Cloudflare, and forwards to localhost. The router never opens, and the only
+// way in is through Cloudflare Access.
+//
+// (An earlier version of this comment said "don't put it behind a tunnel."
+// That was right at the time, because there was no authentication at all. The
+// rule now is: don't expose it without REQUIRE_AUTH=1. See docs/DEPLOY.md.)
 //
 // There is deliberately NO route that talks to Facebook. See Core rule 1 in
 // CLAUDE.md and docs/DASHBOARD.md.
@@ -14,7 +21,16 @@ import {
   SORTS, SORT_GROUP_FIELD, DEFAULT_SORT,
 } from '../lib/db.js';
 import { config } from '../lib/config.js';
+import { createAccessGuard } from '../lib/auth.js';
 import { renderPage } from './render.js';
+
+// Throws at startup if REQUIRE_AUTH is on but unconfigured — better a server
+// that refuses to boot than one quietly serving the internet unprotected.
+const requireIdentity = createAccessGuard({
+  enabled: config.requireAuth,
+  aud: config.accessAud,
+  teamDomain: config.accessTeamDomain,
+});
 
 const VALID_STATUSES = new Set(['interested', 'hidden', 'passed']);
 
@@ -63,6 +79,11 @@ const server = createServer(async (req, res) => {
   const url = new URL(req.url, `http://localhost:${config.dashboardPort}`);
 
   try {
+    // Before any route, including the read-only ones. There is nothing here
+    // that should be readable by a stranger — the listings are the business.
+    const identity = await requireIdentity(req, res);
+    if (!identity) return;
+
     if (req.method === 'GET' && url.pathname === '/') {
       const filters = parseFilters(url);
       const pageSize = config.dashboardPageSize;
@@ -126,5 +147,10 @@ const server = createServer(async (req, res) => {
 
 server.listen(config.dashboardPort, '127.0.0.1', () => {
   console.log(`Dashboard: http://localhost:${config.dashboardPort}`);
+  if (config.requireAuth) {
+    console.log(`Auth:      Cloudflare Access (${config.accessTeamDomain})`);
+  } else {
+    console.log('Auth:      OFF — localhost only. Set REQUIRE_AUTH=1 before exposing.');
+  }
   console.log('Ctrl+C to stop.');
 });
