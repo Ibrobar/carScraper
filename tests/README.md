@@ -17,6 +17,7 @@ Node 22's builtin test runner. No jest, no vitest, no config file.
 | `offers.test.js` | Offer math, rounding, message drafting | Money math, and the round-DOWN rule |
 | `parsing.test.js` | `scrapers/base.js` helpers, search URL, failure classification | Pure, so testable without Playwright |
 | `db.test.js` | Upsert semantics, sticky statuses, zero-listing rule | Two invariants the project's usefulness rests on |
+| `auth.test.js` | Cloudflare Access token verification | A bug here means strangers reading the dashboard; the tests are mostly about what must be REFUSED |
 | `render.test.js` | Dashboard HTML, escaping, grouping, paging | Listing titles are hostile text from strangers |
 | `flips.test.js` | CRM pipeline rules and money math | A wrong profit number is worse than no number |
 | `crm-db.test.js` | Flip/parts storage, idempotent `openFlip` | Clicking Interested twice must not open two files on one car |

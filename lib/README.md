@@ -18,8 +18,9 @@ the data*, it's in `../scrapers/`.
 | `geo.js` | ~590 city coordinates + distance from each metro centre. Facebook's search radius doesn't work, so this enforces it. Keep the table near-complete: a missing town reads as "unknown" and is kept. | `docs/FILTERS.md` §3 |
 | `filters.js` | Combines the rules. `evaluateCard()` (cheap, no description) and `evaluateFull()` (everything). | `docs/FILTERS.md` |
 | `offers.js` | Offer price math + the drafted message text | `docs/FILTERS.md` §Offer math |
-| `flips.js` | The CRM pipeline: statuses, transition rules, per-car and portfolio money math | `docs/CRM.md` |
+| `crm/` | The CRM as a removable module: schema, storage, pipeline, thread matching. Core code never imports from here. | `lib/crm/README.md` |
 | `db.js` | SQLite: schema, upsert, queries, run bookkeeping | `docs/DATA.md` |
+| `auth.js` | Verifies Cloudflare Access tokens so a tunnel misconfiguration isn't an open door. Off by default; localhost needs no login. | `docs/DEPLOY.md` |
 | `ai.js` | Optional second-pass description review via the Claude API. No-ops without a key. | `docs/FILTERS.md` §Stage 2 |
 
 ## Two entry points, matching the two-phase scrape

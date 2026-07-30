@@ -151,6 +151,31 @@ if it falls through.
 
 Nothing on this page messages or posts anything to Facebook — it just links out.
 
+## Sharing it with someone (going live)
+
+`https://crm.yourdomain.com`, logged in by email, for you and 1-2 people you trust — without opening
+a port and **without moving the scraper off your home connection**.
+
+The scraper stays here on purpose. Facebook is much harsher on datacenter IPs than residential ones,
+and a login from a rented server is the likeliest way to get the account checkpointed. So only the
+dashboard is shared, and it's shared by dialling out through a Cloudflare Tunnel rather than opening
+up.
+
+```
+REQUIRE_AUTH=1          # in .env — turn this on BEFORE the tunnel goes up
+ACCESS_AUD=...
+ACCESS_TEAM_DOMAIN=...
+```
+
+With `REQUIRE_AUTH` off (the default) the dashboard trusts anything that reaches it, which is right
+for localhost and badly wrong once it's reachable. If it's on but unconfigured, the server refuses
+to start rather than serve unprotected.
+
+Full walkthrough, including how to check it's actually locked and how to add or remove a person:
+**`docs/DEPLOY.md`**.
+
+Your PC has to be on for anyone to browse. Nothing about the scrape schedule changes.
+
 ## After you change a filter
 
 ```
@@ -200,6 +225,9 @@ after the fact.
 | Check if sellers replied          | `npm run replies` (preview: `npm run replies:dry`) |
 | See what I actually made          | `/crm` — realized profit, top right            |
 | See how much cash is tied up      | `/crm` — "tied up in N unsold"                 |
+| Share it with 1-2 people          | `docs/DEPLOY.md` — Cloudflare Tunnel + Access  |
+| Check the dashboard is locked     | `curl.exe -i http://127.0.0.1:5174/` → 403     |
+| Add or remove someone             | Cloudflare Zero Trust → Access → Policies      |
 | Run the tests                     | `npm test`                                     |
 
 Port: dashboard **5174**.

@@ -76,6 +76,8 @@ Houston run failed -- login wall, snapshot in data/debug/." Bad: paragraphs.
 - `docs/REPLIES.md`      — reading the Marketplace inbox and matching a thread back to a car.
                            READ ONLY, and never touches the personal inbox.
 - `docs/OPERATIONS.md`   — scheduling, troubleshooting a broken run, account-risk practices.
+- `docs/DEPLOY.md`       — going live: Cloudflare Tunnel + Access, who can log in, how to verify
+                           it's actually locked. The scraper stays on the home IP by design.
 - `lib/`                 — pure, zero-dep logic. No I/O, no Playwright. This is what the tests cover.
                            config.js, db.js, makes.js, defects.js, filters.js, offers.js, ai.js,
                            lang.js, geo.js
@@ -102,6 +104,7 @@ Houston run failed -- login wall, snapshot in data/debug/." Bad: paragraphs.
 | Reply detection / thread matching    | docs/REPLIES.md, lib/crm/matching.js            | docs/FILTERS.md, docs/DATA.md | playwright |
 | Offer price or message wording       | docs/FILTERS.md (Offer math), lib/offers.js | docs/SCRAPER.md, docs/DATA.md | node      |
 | Scheduling / a run failed overnight  | docs/OPERATIONS.md                          | docs/FILTERS.md               | schtasks  |
+| Going live / auth / tunnel / access  | docs/DEPLOY.md, lib/auth.js                 | docs/FILTERS.md, docs/SCRAPER.md | cloudflared |
 | Swapping in the paid scraper         | docs/SCRAPER.md (Providers), scrapers/base.js | docs/FILTERS.md             | node      |
 | Phase 2 (offer queue) / Phase 3 (CRM)| docs/DATA.md, this file's Roadmap           | docs/SCRAPER.md               | node      |
 
@@ -145,7 +148,10 @@ If unsure which row applies, ask — don't read everything.
 - **Phase 2 (done):** flip CRM — pipeline, parts, purchase/sale prices, profit. See `docs/CRM.md`.
 - **Not built, and deliberately:** auto-messaging sellers and auto-posting to Marketplace. Both were
   asked about and dropped. Both are Facebook *write* actions and stay out under Core rule 1.
-- **Next up, when asked:** reply detection (polling Messenger to flip `contacted` -> `replied`),
-  per-user logins for 1-2 trusted people (the `owner` column is already on both CRM tables), and
-  hosting. Nothing needs remote access yet.
+- **Going live (built, on `main`):** Cloudflare Tunnel + Access, verified server-side in
+  `lib/auth.js`. The scraper deliberately stays on the home IP — a datacenter login is the likeliest
+  way to get the Facebook account checkpointed. See `docs/DEPLOY.md`.
+- **Next up, when asked:** per-user ownership of flips. The `owner` column already exists on both
+  CRM tables and Access hands us the logged-in email, but nothing reads it yet — every flip is
+  `owner = 'me'` regardless of who is signed in.
 Ask before starting one. Don't add its schema "while you're in there."
