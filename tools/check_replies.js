@@ -10,10 +10,11 @@
 //   node tools/check_replies.js --debug    dump every thread and its best match
 
 import { config } from '../lib/config.js';
+import { openDb } from '../lib/db.js';
 import {
-  openDb, flipsAwaitingReply, linkThread, recordReply, markRepliesChecked, getFlip,
-} from '../lib/db.js';
-import { matchThread, sellerSpokeLast, scoreThread } from '../lib/matching.js';
+  flipsAwaitingReply, linkThread, recordReply, markRepliesChecked, getFlip,
+} from '../lib/crm/db.js';
+import { matchThread, sellerSpokeLast, scoreThread } from '../lib/crm/matching.js';
 import { FacebookProvider, ScrapeProblem } from '../scrapers/facebook.js';
 
 function parseArgs(argv) {

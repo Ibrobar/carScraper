@@ -71,11 +71,14 @@ Houston run failed -- login wall, snapshot in data/debug/." Bad: paragraphs.
 - `docs/OPERATIONS.md`   — scheduling, troubleshooting a broken run, account-risk practices.
 - `lib/`                 — pure, zero-dep logic. No I/O, no Playwright. This is what the tests cover.
                            config.js, db.js, makes.js, defects.js, filters.js, offers.js, ai.js,
-                           lang.js, flips.js
+                           lang.js, geo.js
+- `lib/crm/`             — the CRM as a REMOVABLE MODULE: schema.js, db.js, flips.js, matching.js.
+                           Core code never imports from here. Four seams, listed in lib/crm/README.md.
 - `scrapers/`            — anything that touches Facebook. base.js (the provider contract),
                            facebook.js (Playwright), apify.js (paid fallback, stubbed).
 - `tools/`               — the CLI pipeline: login.js, scrape.js, reprocess.js
-- `dashboard/`           — render.js (shared HTML render) + server.js (localhost:5174)
+- `dashboard/`           — render.js (listings HTML) + server.js (localhost:5174)
+- `dashboard/crm/`       — the CRM's rendering and routes. Mounted by server.js in one line.
 - `tests/`               — node:test specs + `fixtures/` (saved real Marketplace HTML)
 - `data/`                — GITIGNORED. carscraper.db, session/storage_state.json, debug/
 
@@ -88,8 +91,8 @@ Houston run failed -- login wall, snapshot in data/debug/." Bad: paragraphs.
 | Adding a scraped field               | docs/SCRAPER.md, docs/DATA.md               | docs/FILTERS.md               | node      |
 | Schema / migration / query work      | docs/DATA.md, lib/db.js                     | docs/SCRAPER.md, docs/FILTERS.md | node   |
 | Dashboard look or behavior           | docs/DASHBOARD.md, dashboard/render.js      | docs/SCRAPER.md, docs/FILTERS.md | node    |
-| Flip pipeline / parts / profit       | docs/CRM.md, lib/flips.js                   | docs/SCRAPER.md, docs/FILTERS.md | node    |
-| Reply detection / thread matching    | docs/REPLIES.md, lib/matching.js            | docs/FILTERS.md, docs/DATA.md | playwright |
+| Flip pipeline / parts / profit       | docs/CRM.md, lib/crm/flips.js                   | docs/SCRAPER.md, docs/FILTERS.md | node    |
+| Reply detection / thread matching    | docs/REPLIES.md, lib/crm/matching.js            | docs/FILTERS.md, docs/DATA.md | playwright |
 | Offer price or message wording       | docs/FILTERS.md (Offer math), lib/offers.js | docs/SCRAPER.md, docs/DATA.md | node      |
 | Scheduling / a run failed overnight  | docs/OPERATIONS.md                          | docs/FILTERS.md               | schtasks  |
 | Swapping in the paid scraper         | docs/SCRAPER.md (Providers), scrapers/base.js | docs/FILTERS.md             | node      |

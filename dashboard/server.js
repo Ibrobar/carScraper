@@ -4,18 +4,21 @@
 //
 // There is deliberately NO route that talks to Facebook. See Core rule 1 in
 // CLAUDE.md and docs/DASHBOARD.md.
+//
+// The CRM is a mounted module (dashboard/crm/). Everything it owns is reached
+// through the three marked lines below.
 
 import { createServer } from 'node:http';
 import {
   openDb, queryListings, countListings, latestRuns, setListingStatus, countUnchecked,
   SORTS, SORT_GROUP_FIELD, DEFAULT_SORT,
-  openFlip, getFlip, getListing, updateFlip, queryFlips, partsForFlips,
-  addPart, markPartBought, deletePart, deleteFlip,
 } from '../lib/db.js';
 import { config } from '../lib/config.js';
-import { validateTransition, inferStatus } from '../lib/flips.js';
 import { renderPage } from './render.js';
-import { renderCrm } from './crm.js';
+// --- CRM module ------------------------------------------------------------
+import { handleCrmRequest, onListingMarkedInterested, NAV_LINK } from './crm/routes.js';
+const CRM = { handleCrmRequest, onListingMarkedInterested, NAV_LINK };
+// ---------------------------------------------------------------------------
 
 const VALID_STATUSES = new Set(['interested', 'hidden', 'passed']);
 
@@ -45,31 +48,6 @@ function parseFilters(url) {
     // into an ORDER BY, so it must never come from the query string unchecked.
     sort: SORTS[p.get('sort')] ? p.get('sort') : DEFAULT_SORT,
   };
-}
-
-/** Dollars from a form field -> integer cents. Money is never a float here. */
-function dollarsToCents(value) {
-  if (value === undefined || value === null || value === '') return null;
-  const parsed = Number.parseFloat(String(value).replace(/[^\d.]/g, ''));
-  if (!Number.isFinite(parsed) || parsed <= 0) return null;
-  return Math.round(parsed * 100);
-}
-
-async function readFormBody(req, limit = 100_000) {
-  const chunks = [];
-  let size = 0;
-  for await (const chunk of req) {
-    size += chunk.length;
-    if (size > limit) throw new Error('body too large');
-    chunks.push(chunk);
-  }
-  return Object.fromEntries(new URLSearchParams(Buffer.concat(chunks).toString('utf8')));
-}
-
-/** Forms post and redirect back, so a refresh doesn't re-submit. */
-function seeOther(res, location = '/crm') {
-  res.writeHead(303, { location });
-  res.end();
 }
 
 async function readJsonBody(req, limit = 10_000) {
@@ -108,6 +86,7 @@ const server = createServer(async (req, res) => {
         pageSize,
         total,
         groupField: SORT_GROUP_FIELD[filters.sort] ?? 'posted_at',
+        navLinks: CRM ? [CRM.NAV_LINK] : [],
       });
       res.writeHead(200, { 'content-type': 'text/html; charset=utf-8' });
       res.end(html);
@@ -129,98 +108,19 @@ const server = createServer(async (req, res) => {
       }
       setListingStatus(db, fbId, status);
 
-      // Marking a car Interested is the moment it enters the pipeline. Opening
-      // the flip here means the CRM is never missing a car you said yes to.
-      // openFlip is idempotent by listing, so clicking twice — or re-marking a
-      // car that's already `bought` — never resets it.
-      let flip = null;
-      if (status === 'interested') {
-        const listing = getListing(db, fbId);
-        if (listing) flip = openFlip(db, listing.id).flip;
-      }
+      // Interested is the moment a car enters the pipeline. Without the CRM
+      // mounted the status alone still takes it off this page, which is the
+      // behaviour that matters here.
+      const flipId = status === 'interested' && CRM
+        ? CRM.onListingMarkedInterested(db, fbId)
+        : null;
 
       res.writeHead(200, { 'content-type': 'application/json' });
-      res.end(JSON.stringify({ ok: true, flipId: flip?.id ?? null }));
+      res.end(JSON.stringify({ ok: true, flipId }));
       return;
     }
 
-    // --- CRM ---------------------------------------------------------------
-
-    if (req.method === 'GET' && url.pathname === '/crm') {
-      const flips = queryFlips(db, {});
-      const parts = partsForFlips(db, flips.map((f) => f.id));
-      const html = renderCrm({
-        rows: flips.map((flip) => ({ flip, parts: parts.get(flip.id) ?? [] })),
-      });
-      res.writeHead(200, { 'content-type': 'text/html; charset=utf-8' });
-      res.end(html);
-      return;
-    }
-
-    const statusMatch = url.pathname.match(/^\/crm\/(\d+)\/status$/);
-    if (req.method === 'POST' && statusMatch) {
-      const flip = getFlip(db, Number(statusMatch[1]));
-      if (!flip) { res.writeHead(404); res.end('No such flip'); return; }
-
-      const form = await readFormBody(req);
-      const values = {
-        purchase_price_cents: dollarsToCents(form.purchase) ?? undefined,
-        sale_price_cents: dollarsToCents(form.sale) ?? undefined,
-      };
-      // If a purchase price is being recorded, the car is bought — even if the
-      // dropdown was left alone. Otherwise you get cars sitting at "Interested"
-      // with money against them.
-      const status = inferStatus(flip, form.status, values);
-
-      // The pipeline refuses to record a sale with no purchase price — a
-      // profit number you can't trust is worse than no number.
-      const check = validateTransition(flip, status, values);
-      if (!check.ok) {
-        res.writeHead(400, { 'content-type': 'text/html; charset=utf-8' });
-        res.end(`<p>${check.error}</p><p><a href="/crm">Back</a></p>`);
-        return;
-      }
-      updateFlip(db, flip.id, { status, ...values });
-      seeOther(res);
-      return;
-    }
-
-    const deleteFlipMatch = url.pathname.match(/^\/crm\/(\d+)\/delete$/);
-    if (req.method === 'POST' && deleteFlipMatch) {
-      // Returns the listing to `passed` so the car doesn't disappear from both
-      // the board and the listings page. See deleteFlip in lib/db.js.
-      deleteFlip(db, Number(deleteFlipMatch[1]));
-      seeOther(res);
-      return;
-    }
-
-    const addPartMatch = url.pathname.match(/^\/crm\/(\d+)\/part$/);
-    if (req.method === 'POST' && addPartMatch) {
-      const form = await readFormBody(req);
-      if (form.name?.trim()) {
-        addPart(db, Number(addPartMatch[1]), {
-          name: form.name.trim(),
-          costCents: dollarsToCents(form.cost),
-        });
-      }
-      seeOther(res);
-      return;
-    }
-
-    const boughtMatch = url.pathname.match(/^\/crm\/part\/(\d+)\/bought$/);
-    if (req.method === 'POST' && boughtMatch) {
-      const form = await readFormBody(req);
-      markPartBought(db, Number(boughtMatch[1]), dollarsToCents(form.cost));
-      seeOther(res);
-      return;
-    }
-
-    const deleteMatch = url.pathname.match(/^\/crm\/part\/(\d+)\/delete$/);
-    if (req.method === 'POST' && deleteMatch) {
-      deletePart(db, Number(deleteMatch[1]));
-      seeOther(res);
-      return;
-    }
+    if (CRM && await CRM.handleCrmRequest(req, res, { db, url })) return;
 
     res.writeHead(404, { 'content-type': 'text/plain' });
     res.end('Not found');

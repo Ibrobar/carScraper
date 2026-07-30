@@ -6,8 +6,10 @@ what you paid, what you put into them, and what you actually made.
 `npm run dashboard` → **http://localhost:5174/crm** (or the "Flips →" link at the top of the
 listings page).
 
-Code: `lib/flips.js` (pure pipeline + money logic), `lib/db.js` (flips/parts storage),
-`dashboard/crm.js` (rendering), routes in `dashboard/server.js`.
+Code: everything the CRM owns lives under `lib/crm/` (pipeline, storage, schema, thread matching)
+and `dashboard/crm/` (rendering, routes). It is a **removable module** — the scraper and listings
+dashboard don't import from either directory. The four seams that connect it to the core are listed
+in `lib/crm/README.md` and asserted by `tests/crm-module.test.js`.
 
 ## Nothing here touches Facebook
 
@@ -103,7 +105,7 @@ loss and it's not a profit either — it's `tied up`, which is its own number.
 
 ## The board
 
-Four columns, defined once in `BOARD_COLUMNS` (`lib/flips.js`):
+Four columns, defined once in `BOARD_COLUMNS` (`lib/crm/flips.js`):
 
 | Column | Statuses |
 |---|---|
@@ -143,10 +145,10 @@ arrive (1–2 trusted people), the queries already have the column to filter on.
 
 ## Adding a stage or a field
 
-1. Add the status to `FLIP_STATUSES` in `lib/flips.js`, with a label in `FLIP_STATUS_LABELS`.
+1. Add the status to `FLIP_STATUSES` in `lib/crm/flips.js`, with a label in `FLIP_STATUS_LABELS`.
 2. If it needs money attached, add it to `REQUIRES_AMOUNT` — that's the single place the rule lives.
 3. If it belongs in a board column, add it to `CHASING_STATUSES` / `ACTIVE_STATUSES` or the columns
-   list in `dashboard/crm.js`.
+   list in `dashboard/crm/render.js`.
 4. New columns go in the `MIGRATIONS` array in `lib/db.js` — append, never edit an applied entry.
 
 ## Not built

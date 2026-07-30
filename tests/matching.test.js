@@ -7,7 +7,7 @@ import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   tokenize, tokenOverlap, scoreThread, matchThread, sellerSpokeLast, MIN_CONFIDENCE,
-} from '../lib/matching.js';
+} from '../lib/crm/matching.js';
 
 const flip = (over = {}) => ({
   id: 1, fb_id: '111', title: '2007 Honda Accord · DX Sedan 4D',

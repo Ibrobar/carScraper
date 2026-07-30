@@ -1,12 +1,14 @@
 // CRM board rendering. Pure — a function of rows, same split as render.js.
 // See docs/CRM.md.
 
-import { escapeHtml } from './render.js';
-import { formatMoney } from '../lib/offers.js';
+// `./render.js` would now resolve to this file — the shared helper lives one
+// level up, in the listings renderer.
+import { escapeHtml } from '../render.js';
+import { formatMoney } from '../../lib/offers.js';
 import {
   FLIP_STATUSES, FLIP_STATUS_LABELS, BOARD_COLUMNS,
   flipTotals, portfolioTotals,
-} from '../lib/flips.js';
+} from '../../lib/crm/flips.js';
 
 const STATUS_CLASS = {
   interested: 'chasing', contacted: 'chasing', replied: 'attention',

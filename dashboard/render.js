@@ -363,6 +363,9 @@ export function renderPage({
   listings = [], runs = [], filters = {}, unchecked = 0,
   page = 1, pageSize = 10, total = null, groupField = 'posted_at',
   now = new Date(),
+  // Header links contributed by mounted modules, e.g. the CRM's "Flips →".
+  // Empty by default so this page stands alone when nothing else is mounted.
+  navLinks = [],
 } = {}) {
   const matched = total ?? listings.length;
   const groups = groupByDay(listings, now, groupField);
@@ -474,7 +477,9 @@ export function renderPage({
 </style>
 </head>
 <body>
-<h1>Car Scraper <a class="crmlink" href="/crm">Flips &rarr;</a></h1>
+<h1>Car Scraper ${navLinks
+  .map((l) => `<a class="crmlink" href="${escapeHtml(l.href)}">${l.label}</a>`)
+  .join(' ')}</h1>
 <p class="sub">
   ${matched} ${filters.rejected ? 'rejected' : 'good'} listing${matched === 1 ? '' : 's'}${
     Number(filters.days) > 0

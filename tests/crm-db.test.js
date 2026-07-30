@@ -7,11 +7,12 @@ import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import {
-  openDb, closeDb, upsertListing, getListing,
+  openDb, closeDb, upsertListing, getListing, setListingStatus,
+} from '../lib/db.js';
+import {
   openFlip, getFlip, getFlipByListing, updateFlip, queryFlips, deleteFlip,
   addPart, markPartBought, deletePart, partsForFlip, partsForFlips,
-  setListingStatus,
-} from '../lib/db.js';
+} from '../lib/crm/db.js';
 
 let dir;
 let db;

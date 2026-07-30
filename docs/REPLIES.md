@@ -9,7 +9,7 @@ npm run replies:dry      report only, write nothing
 npm run replies:debug    dry run + dump every thread and its best match
 ```
 
-Code: `lib/matching.js` (pure matching), `FacebookProvider.fetchInboxThreads()` (reading),
+Code: `lib/crm/matching.js` (pure matching), `FacebookProvider.fetchInboxThreads()` (reading),
 `tools/check_replies.js` (the loop).
 
 ## This is a read, and only a read

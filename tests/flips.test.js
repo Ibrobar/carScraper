@@ -6,7 +6,7 @@ import assert from 'node:assert/strict';
 import {
   FLIP_STATUSES, BOARD_COLUMNS, ACTIVE_STATUSES,
   isValidStatus, validateTransition, inferStatus, flipTotals, portfolioTotals,
-} from '../lib/flips.js';
+} from '../lib/crm/flips.js';
 
 const flip = (over = {}) => ({ status: 'interested', ...over });
 const part = (over = {}) => ({ status: 'needed', cost_cents: 0, ...over });
