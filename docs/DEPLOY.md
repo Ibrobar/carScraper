@@ -14,6 +14,54 @@ The old fitra.us website and its email stop working. That's fine and expected.
 
 ---
 
+## The short version
+
+Tick these off. Details for any step are further down.
+
+```
+□ 1  cloudflare.com → sign up → Add a site → fitra.us → Free
+       copy the 2 nameservers it gives you
+
+□ 2  godaddy.com → My Products → fitra.us → Nameservers → Change
+       → "I'll use my own" → paste both → save → wait for Cloudflare's email
+
+□ 3  Cloudflare → DNS → delete the "fitra.us" and "www" rows of type A or CNAME
+
+□ 4  PowerShell:
+       winget install --id Cloudflare.cloudflared
+       (close PowerShell, open it again)
+       cloudflared tunnel login
+       cloudflared tunnel create carscraper        ← copy the long ID
+       cloudflared tunnel route dns carscraper fitra.us
+
+□ 5  notepad $env:USERPROFILE\.cloudflared\config.yml
+       paste the 6 lines from step 3 below, with your ID
+
+□ 6  Two PowerShell windows:
+       npm run dashboard
+       cloudflared tunnel run carscraper
+     Check https://fitra.us loads.   ← OPEN TO EVERYONE right now
+
+□ 7  Cloudflare → Zero Trust → Access → Applications → Add → Self-hosted
+       name: carscraper      domain: fitra.us
+       Policy → Allow → Emails → your 3 email addresses
+
+□ 8  Copy the app's AUD tag into .env, plus your team name:
+       REQUIRE_AUTH=1
+       ACCESS_AUD=<the long string>
+       ACCESS_TEAM_DOMAIN=<yourteam>.cloudflareaccess.com
+     Restart the dashboard.
+
+□ 9  curl.exe -i http://127.0.0.1:5174/
+     MUST say 403. If it shows a web page, step 8 didn't work — stop and fix it.
+
+□ 10 Auto-start:
+       cloudflared service install        (PowerShell as Administrator)
+       Task Scheduler → new task → At startup → node dashboard/server.js
+```
+
+---
+
 ## How it works, in one picture
 
 Your computer keeps doing everything. It just gets a doorway to the internet.
