@@ -1,0 +1,31 @@
+{
+  "name": "carscraper",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Scrapes Facebook Marketplace vehicle listings in DFW + Houston, filters to flippable cars, shows them on a local dashboard.",
+  "engines": {
+    "node": ">=22.5.0"
+  },
+  "scripts": {
+    "login": "node tools/login.js",
+    "scrape": "node --disable-warning=ExperimentalWarning tools/scrape.js",
+    "scrape:dfw": "node --disable-warning=ExperimentalWarning tools/scrape.js --metro dfw",
+    "scrape:houston": "node --disable-warning=ExperimentalWarning tools/scrape.js --metro houston",
+    "scrape:test": "node --disable-warning=ExperimentalWarning tools/scrape.js --metro dfw --limit 20",
+    "reprocess": "node --disable-warning=ExperimentalWarning tools/reprocess.js",
+    "reprocess:dry": "node --disable-warning=ExperimentalWarning tools/reprocess.js --dry",
+    "requeue": "node --disable-warning=ExperimentalWarning tools/requeue_details.js",
+    "replies": "node --disable-warning=ExperimentalWarning tools/check_replies.js",
+    "replies:dry": "node --disable-warning=ExperimentalWarning tools/check_replies.js --dry",
+    "replies:debug": "node --disable-warning=ExperimentalWarning tools/check_replies.js --dry --debug",
+    "dashboard": "node --disable-warning=ExperimentalWarning dashboard/server.js",
+    "test": "node --disable-warning=ExperimentalWarning --test"
+  },
+  "dependencies": {
+    "playwright": "^1.49.0"
+  },
+  "optionalDependencies": {
+    "@anthropic-ai/sdk": "^0.68.0"
+  }
+}

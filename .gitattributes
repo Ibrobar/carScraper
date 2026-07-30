@@ -1,0 +1,10 @@
+# Authored on Windows, destined for a Linux host. Normalize to LF in the repo so
+# shell scripts and Node shebangs don't arrive with CRLF and fail to execute.
+* text=auto eol=lf
+
+# PowerShell stays CRLF — it's Windows-only tooling (tools/register_task.ps1).
+*.ps1 text eol=crlf
+
+# Saved Marketplace HTML is a byte-for-byte parser fixture. Any normalization
+# would silently change what the parser tests are asserting against.
+tests/fixtures/*.html -text
