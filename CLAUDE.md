@@ -10,7 +10,14 @@ dashboard. The only real dependency is Playwright.
 Houston is implemented and defined in `lib/config.js` but **off by default** — `METROS=dfw,houston`
 in `.env` re-enables it. Don't turn it on unprompted.
 
-Phase 1 (built) = scrape + filter + dashboard. Phase 2 = offer-review queue. Phase 3 = flip CRM.
+**This is the `feature/crm` branch — `main` plus the flip CRM module.** `main` is the live product
+(scrape + filter + dashboard) and does not contain `lib/crm/` or `dashboard/crm/`. This branch
+carries a revert of main's removal commit, so it sits *ahead* of main.
+
+- CRM work belongs here. Scraper, filter, dashboard and deployment work belongs on `main`.
+- Keep current with `git merge main` — safe in that direction.
+- Going live with the CRM = `git checkout main && git merge feature/crm`.
+
 See "Roadmap" at the bottom before adding anything.
 
 ## How to talk to me — TERSE
