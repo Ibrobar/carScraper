@@ -10,13 +10,13 @@ dashboard. The only real dependency is Playwright.
 Houston is implemented and defined in `lib/config.js` but **off by default** — `METROS=dfw,houston`
 in `.env` re-enables it. Don't turn it on unprompted.
 
-**This is the `feature/crm` branch — `main` plus the flip CRM module.** `main` is the live product
-(scrape + filter + dashboard) and does not contain `lib/crm/` or `dashboard/crm/`. This branch
-carries a revert of main's removal commit, so it sits *ahead* of main.
+**`main` is the live product and now includes the flip CRM.** It was developed on `feature/crm` and
+merged in once the dashboard went live on https://fitra.us. The CRM is still a **removable module**
+(`lib/crm/`, `dashboard/crm/`) with four seams — see `lib/crm/README.md` — so it can be lifted back
+out if it ever needs to be.
 
-- CRM work belongs here. Scraper, filter, dashboard and deployment work belongs on `main`.
-- Keep current with `git merge main` — safe in that direction.
-- Going live with the CRM = `git checkout main && git merge feature/crm`.
+`feature/crm` still exists but is now behind `main`. New work goes on `main` or a fresh branch;
+don't keep using it.
 
 See "Roadmap" at the bottom before adding anything.
 
