@@ -67,12 +67,6 @@ backfilled, which is fine because listings live for days.
 
 Remove with `schtasks /Delete /TN CarScraper /F`.
 
-## What is NOT here, and won't be
-
-There is no `message.js`, no `send.js`, no `respond.js`. Nothing in this project contacts a seller.
-The dashboard drafts offer text and copies it to the clipboard; Ibrahim sends it himself. See Core
-rule 1 in `CLAUDE.md`.
-
 ## `backfill_flips.js`
 Opens flips for listings marked `interested` that don't have one.
 
@@ -82,3 +76,10 @@ branch, `main` set the status but had no `openFlip` to call, so clicking Interes
 silently disappear. `npm run backfill:flips:dry` shows what it would rescue without writing.
 
 Safe to run any time; it only touches listings that have no flip, and `openFlip` is idempotent.
+
+## What is NOT here, and won't be
+
+There is no `message.js`, no `send.js`, no `respond.js`. Nothing in this project contacts a seller.
+The dashboard drafts offer text and copies it to the clipboard; Ibrahim sends it himself. See Core
+rule 1 in `CLAUDE.md`.
+
