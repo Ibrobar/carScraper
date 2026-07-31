@@ -20,7 +20,9 @@
     "replies:dry": "node --disable-warning=ExperimentalWarning tools/check_replies.js --dry",
     "replies:debug": "node --disable-warning=ExperimentalWarning tools/check_replies.js --dry --debug",
     "dashboard": "node --disable-warning=ExperimentalWarning dashboard/server.js",
-    "test": "node --disable-warning=ExperimentalWarning --test"
+    "test": "node --disable-warning=ExperimentalWarning --test",
+    "backfill:flips": "node --disable-warning=ExperimentalWarning tools/backfill_flips.js",
+    "backfill:flips:dry": "node --disable-warning=ExperimentalWarning tools/backfill_flips.js --dry"
   },
   "dependencies": {
     "playwright": "^1.49.0"

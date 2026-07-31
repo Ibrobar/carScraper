@@ -7,6 +7,9 @@ Four entry points. Everything you actually run lives here.
 | `npm run login` | `login.js` | Opens a browser, you log into Facebook by hand, saves the session |
 | `npm run scrape` | `scrape.js` | The two-phase scrape + filter + store |
 | `npm run reprocess` | `reprocess.js` | Re-runs filters over stored listings. No network. |
+| `npm run requeue` | `requeue_details.js` | Re-queues listings whose detail fetch produced no description |
+| `npm run replies` | `check_replies.js` | Reads the Marketplace inbox, flips `contacted` -> `replied`. READ ONLY. |
+| `npm run backfill:flips` | `backfill_flips.js` | Rescues Interested cars that never got onto the board |
 | — | `register_task.ps1` | Registers the twice-daily Windows scheduled task |
 
 ## `login.js`
@@ -69,3 +72,13 @@ Remove with `schtasks /Delete /TN CarScraper /F`.
 There is no `message.js`, no `send.js`, no `respond.js`. Nothing in this project contacts a seller.
 The dashboard drafts offer text and copies it to the clipboard; Ibrahim sends it himself. See Core
 rule 1 in `CLAUDE.md`.
+
+## `backfill_flips.js`
+Opens flips for listings marked `interested` that don't have one.
+
+Such a car is invisible in both places: the sticky status keeps it off the listings page, and with
+no flip it isn't on the board either. This is not hypothetical — while the CRM lived on its own
+branch, `main` set the status but had no `openFlip` to call, so clicking Interested made two cars
+silently disappear. `npm run backfill:flips:dry` shows what it would rescue without writing.
+
+Safe to run any time; it only touches listings that have no flip, and `openFlip` is idempotent.

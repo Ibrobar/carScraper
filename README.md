@@ -232,6 +232,7 @@ after the fact.
 | Share it with 1-2 people          | `docs/DEPLOY.md` — put it on https://fitra.us  |
 | Check the dashboard is locked     | `curl.exe -i http://127.0.0.1:5174/` → 403     |
 | Add or remove someone             | Cloudflare Zero Trust → Access → Policies      |
+| Interested car vanished           | `npm run backfill:flips` — puts it on the board |
 | Run the tests                     | `npm test`                                     |
 
 Port: dashboard **5174**.

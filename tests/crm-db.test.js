@@ -12,6 +12,7 @@ import {
 import {
   openFlip, getFlip, getFlipByListing, updateFlip, queryFlips, deleteFlip,
   addPart, markPartBought, deletePart, partsForFlip, partsForFlips,
+  backfillMissingFlips,
 } from '../lib/crm/db.js';
 
 let dir;
@@ -209,5 +210,61 @@ describe('queryFlips', () => {
   test('filters by owner', () => {
     const mine = queryFlips(db, { owner: 'ibrahim' });
     assert.ok(mine.every((r) => r.owner === 'ibrahim'));
+  });
+});
+
+describe('backfillMissingFlips', () => {
+  // This is a real bug that happened: while the CRM lived on its own branch,
+  // the dashboard set status='interested' but had no openFlip to call. The
+  // sticky status kept those cars off the listings page and the missing flip
+  // kept them off the board, so clicking Interested looked like the car simply
+  // vanished. Two cars were lost that way before anyone noticed.
+  const strand = (fbId, title) => {
+    upsertListing(db, { fb_id: fbId, title, price_cents: 90000, metro: 'dfw', status: 'passed' });
+    const id = getListing(db, fbId).id;
+    setListingStatus(db, fbId, 'interested');
+    return id;
+  };
+
+  test('finds a car marked Interested that has no flip', () => {
+    strand('stranded1', '2010 Chevrolet Cobalt');
+    const found = backfillMissingFlips(db, { dryRun: true });
+    assert.ok(found.some((c) => c.fbId === 'stranded1'), 'stranded car not found');
+  });
+
+  test('a dry run writes nothing', () => {
+    const before = queryFlips(db, {}).length;
+    backfillMissingFlips(db, { dryRun: true });
+    assert.equal(queryFlips(db, {}).length, before);
+  });
+
+  test('opens flips for them, and they land on the board', () => {
+    const id = strand('stranded2', '2003 Honda Accord');
+    assert.equal(getFlipByListing(db, id), undefined);
+
+    backfillMissingFlips(db);
+
+    const flip = getFlipByListing(db, id);
+    assert.ok(flip, 'no flip was opened');
+    assert.equal(flip.status, 'interested');
+    assert.ok(queryFlips(db, {}).some((f) => f.listing_id === id));
+  });
+
+  test('leaves nothing stranded afterwards', () => {
+    assert.deepEqual(backfillMissingFlips(db, { dryRun: true }), []);
+  });
+
+  test('is safe to run twice — no duplicate flips', () => {
+    const before = queryFlips(db, {}).length;
+    backfillMissingFlips(db);
+    backfillMissingFlips(db);
+    assert.equal(queryFlips(db, {}).length, before);
+  });
+
+  test('ignores cars that are hidden or still passed', () => {
+    upsertListing(db, { fb_id: 'nothanks', title: 'Hidden car', metro: 'dfw', status: 'passed' });
+    setListingStatus(db, 'nothanks', 'hidden');
+    const found = backfillMissingFlips(db, { dryRun: true });
+    assert.ok(!found.some((c) => c.fbId === 'nothanks'));
   });
 });
